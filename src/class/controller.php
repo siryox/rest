@@ -54,18 +54,7 @@ abstract class controller
                 $modelo = $modelo.'Model';
                 $ruta_modelo = APP_PATH . 'models' . DS . $modelo . '.php';// creamos la ruta del modelo
 
-                if(!$modulo)
-                {
-                        $modulo = $this->_request->getModulo();
-                }
-
-                if($modulo)
-                {
-                        if($modulo != 'defaults')
-                        {
-                                $ruta_modelo = APP_PATH .'modules'. DS . $modulo . DS .'models' . DS . $modelo . '.php';
-                        }
-                }
+                
 
                 //die($ruta_modelo);
                 if(is_readable($ruta_modelo))// verificamos que la ruta existe 

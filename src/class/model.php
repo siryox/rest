@@ -5,9 +5,10 @@
 
 class model
 {
-        private $_table;
+        protected $_table;
         private $_registry;// class 	
         protected $_db;
+        private $_table_foreing;
                 
         public function __construct($table)
         {
@@ -15,6 +16,10 @@ class model
            $this->_db = $this->_registry->_db;	
                       
            $this->_table = $table;
+        }
+        public function has_many($value)
+        {
+             $this->_table_foreing = $value;   
         }
                  
         public function list($parameters)
@@ -33,20 +38,20 @@ class model
 
                 if(is_array($search))
                 {
-                ksort($search);
+                        ksort($search);
 
-                $searchDetails = "";
-                $i=0;
-                foreach ($search as $key => $value) {
-                        $searchDetails .= "$key=:$key";
-                        if($i < count($search))
-                        {
-                                $searchDetails .=',';   
+                        $searchDetails = "";
+                        $i=1;
+                        foreach ($search as $key => $value) {
+                                $searchDetails .= "$key=:$key";
+                                if($i < count($search))
+                                {
+                                        $searchDetails .=',';   
+                                }
+                                $i++;
                         }
-                        $i++;
-                }
 
-                $sql .= ' WHERE ' . $searchDetails;   
+                        $sql .= ' WHERE ' . $searchDetails;   
                 }
 
                 if(!is_null($index))
@@ -55,7 +60,7 @@ class model
                 }
 
 
-                //die($sql);
+                ///die($sql);
                 $sth = $this->_db->prepare($sql);
 
                 foreach ($search as $key => $value) {
@@ -68,7 +73,42 @@ class model
                         $error =$this->getError();
                         $this->storeLog($error['2'].' in table:'.$this->_table);
                 }else
-                        return $sth->fetchAll(PDO::FETCH_ASSOC);      
+                     {
+                        $response = array();
+                        $data= $sth->fetchAll(PDO::FETCH_ASSOC);
+                        if($this->_table_foreing != "") 
+                        {
+                              foreach($data as $row)
+                              {
+                                
+                                $val = $row["id_".$this->_table];
+                                $sql = "SELECT * FROM ".$this->_table_foreing." WHERE ".$this->_table."_id =:val";       
+                                
+                                $sth = $this->_db->prepare($sql);
+                                $sth->bindValue(":val",$val);
+                                $res = $sth->execute();
+                                if(!$res)
+                                {
+                                        $error =$this->getError();
+                                        $this->storeLog($error['2'].' in table:'.$this->_table_foreing);
+                                }else
+                                    {
+                                        $data_foreing = $sth->fetchAll(PDO::FETCH_ASSOC);
+                                        $reponse[]= [$this->_table=>$row,"has_many"=>[$this->_table_foreing=>$data_foreing]];
+                                    }               
+
+                              }  
+                        }else
+                             {
+                                foreach($data as $row)
+                                {
+                                        $reponse[] = [$this->_table=>$row];
+                                }        
+                             }
+                             
+                             return $reponse;
+                     }   
+                               
 
         }
 
@@ -215,8 +255,99 @@ class model
 
         }
 
+        public function search($parameters)
+        {
+                //$field = campos a consultar ['fields'=>"id,fecha,estatus"]
+                $fields = (isset($parameters['fields']))?$parameters['fields']:'*';
 
-        private function storeLog($mensaje)
+                //$search = campos del where  ['id'=>'1','fecha'=>'01-01-2000','estatus'='activo']
+                $search = (isset($parameters['search']))?$parameters['search']:null;   
+                
+                //$index = campos de ordenacion ['index'=>'id,fecha']
+                $index  = (isset($parameters['index']))?$parameters['index']:null;
+
+
+                $sql = 'SELECT ' . $fields . ' FROM '. $this->_table;
+
+                if(is_array($search))
+                {
+                        ksort($search);
+
+                        $searchDetails = "";
+                        $i=1;
+                        foreach ($search as $key => $value) {
+                                $searchDetails .= "$key=:$key";
+                                if($i < count($search))
+                                {
+                                        $searchDetails .=',';   
+                                }
+                                $i++;
+                        }
+
+                        $sql .= ' WHERE ' . $searchDetails;   
+                }
+
+                if(!is_null($index))
+                {
+                $sql .= ' ORDER BY  ' . $index;
+                }
+
+
+                ///die($sql);
+                $sth = $this->_db->prepare($sql);
+
+                foreach ($search as $key => $value) {
+                       $sth->bindValue(":$key",$value);
+                }
+                        
+                $res = $sth->execute();
+                if(!$res)
+                {
+                        $error =$this->getError();
+                        $this->storeLog($error['2'].' in table:'.$this->_table);
+                }else
+                     {
+                        $response = array();
+                        $data = $sth->fetch(PDO::FETCH_ASSOC);
+                        if($this->_table_foreing != "") 
+                        {
+                              
+                                
+                                $val = $data["id_".$this->_table];
+                                $sql = "SELECT * FROM ".$this->_table_foreing." WHERE ".$this->_table."_id =:val";       
+                                
+                                $sth = $this->_db->prepare($sql);
+                                $sth->bindValue(":val",$val);
+                                $res = $sth->execute();
+                                if(!$res)
+                                {
+                                        $error =$this->getError();
+                                        $this->storeLog($error['2'].' in table:'.$this->_table_foreing);
+                                }else
+                                    {
+                                        $data_foreing = $sth->fetchAll(PDO::FETCH_ASSOC);
+                                        $reponse = [$this->_table=>$data,"has_many"=>[$this->_table_foreing=>$data_foreing]];
+                                    }               
+
+                                
+                        }else
+                             {
+                                
+                                        $reponse = [$this->_table=>$row];        
+                             }
+                             
+                             return $reponse;
+                     }
+
+
+
+
+
+
+        }
+
+
+        public function storeLog($mensaje)
         {
                 if($log = fopen(LOG_PATH."logDB.txt","a+"))
                 {
@@ -228,6 +359,47 @@ class model
                         return TRUE;
                 }
         }
+
+         
+         public function sqlQuery($sql)
+         {
+             $res = $this->_db->query($sql);
+             if($res)
+             {
+                 $res->setFetchMode(PDO::FETCH_ASSOC);
+                 $data = $res->fetchAll();
+                 if(count($data)>1)
+                 {
+                        return $data;
+                 }else
+                      {
+                        if(count($data)==1)
+                                return $data[0];
+                        else
+                                return array();    
+                      }  
+                        
+             }else
+                  {
+                        $error =$this->_db->getError();
+                        $this->storeLog($error['2']);                       
+                        return false;
+                  }      
+                 
+         }
+         public function sqlExec($sql)
+         {
+                $res = $this->_db->exec($sql);
+                if(!$res)
+                {
+                        $error =$this->_db->getError();
+                        $this->storeLog($error['2']);                       
+                        return false;
+                }else
+                    return true; 
+
+         }      
+ 
         
         	
 }

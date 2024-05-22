@@ -43,8 +43,7 @@ class db extends PDO
     public function cancel()
     {
         self::rollBack();
-        $error =$this->getError();
-        logger::errorLog($error['2'],'DB');
+
     }   
 
     

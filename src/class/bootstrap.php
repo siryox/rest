@@ -25,7 +25,7 @@
 				
 				}else
 					{
-						throw new error("Error de base de Modulo, La ruta del modulo no existe");
+						throw new Exception("Error de base de Modulo, La ruta del modulo no existe");
 					}
 				
 			}else
@@ -36,8 +36,7 @@
 			
 			// si el archivo existe y es leible
 			if(is_readable($rutaControlador))
-			{
-                            
+			{                           
 				// importamos el archivo								
 				require_once $rutaControlador;
 				// instanciamos la clase
@@ -65,12 +64,17 @@
 				{
                      //die($metodo);
 					// se invocan los metodos contenidon en una clase pasandole los argumentos
-					call_user_func_array(array($controller,$metodo),$argumento);
-				}else
+					if(!call_user_func_array(array($controller,$metodo),$argumento))
 					{
-                                            
+						//throw new Exception('Error cargando  : '. $rutaControlador . " ");
+					}
+				}else
+					{                                           
 						// se invoca el metodo contenido en una clase sin argumentos
-						call_user_func(array($controller,$metodo));
+						if(!call_user_func(array($controller,$metodo)))
+						{
+							//throw new Exception('Error llamando metodo de  : '. $rutaControlador . " ");
+						}
 					}
 						//si existe el metodo finalize se llama 
 						foreach ($métodos_clase as $nombre_método) {
@@ -80,10 +84,8 @@
 							   $controller->finalize();
 							}
 							
-						}        
-                                
-				unset($_GET['url']);	
-			  
+						}                                       
+				//unset($_GET['url']);				  
 			}else
 			{
 				   //die("pase0");
